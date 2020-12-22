@@ -9,93 +9,109 @@ const isDev = !isProd;
 
 const filename = (ext) => isDev ? `bundle.${ext}` : `bundle.[hash].${ext}`;
 
+const jsLoaders = () => {
+  const loaders = [
+    {
+      loader: 'babel-loader',
+      options: {
+        presets: ['@babel/preset-env'],
+      },
+    },
+  ];
+  if (isDev) {
+    loaders.push('eslint-loader');
+  }
+  return loaders;
+};
+
 module.exports = {
-    context: path.resolve(__dirname, 'src'),
-    mode: 'development',
-    entry: './index.js',
-    output: {
+  context: path.resolve(__dirname, 'src'),
+  mode: 'development',
+  entry: './index.js',
+  output: {
 
-        // Это название файла на выходе, в котором будут все наши исходники
-        filename: filename('js'),
+    // Это название файла на выходе, в котором будут все наши исходники
+    filename: filename('js'),
 
-        //Это название директории, в которой будут исходники
-        path: path.resolve(__dirname, 'dist'),
+    // Это название директории, в которой будут исходники
+    path: path.resolve(__dirname, 'dist'),
+  },
+
+  resolve: {
+    extensions: ['.js'],
+    alias: {
+      '@': path.resolve(__dirname, 'src'),
+      '@core': path.resolve(__dirname, 'src/core'),
     },
+  },
 
-    resolve: {
-        extensions: ['.js'],
-        alias: {
-          '@': path.resolve(__dirname, 'src'),
-          '@core': path.resolve(__dirname, 'src/core')
-        }
+  devtool: isDev ? 'source-map' : false,
+
+  devServer: {
+    contentBase: path.join(__dirname, 'dist'),
+    port: 3000,
+    hot: true,
+    open: true,
+    watchContentBase: true,
+    progress: true,
+    proxy: {
+      '/api': 'http://localhost:8080',
+      'changeOrigin': true,
+      'autoRewrite': true,
     },
+  },
 
-    devtool: isDev ? 'source-map' : false,
+  plugins: [
 
-    devServer: {
-        contentBase: path.join(__dirname, 'dist'),
-        port: 3000,
-        hot: true,
-        open: true,
-        watchContentBase: true,
-        progress: true,
-        proxy: {
-            '/api': 'http://localhost:8080',
-            changeOrigin: true,
-            autoRewrite: true
-        }
-    },
+    // Плагин, который чистит папку дист, чтобы файлов с хэшем не было
+    new CleanWebpackPlugin(),
 
-    plugins: [
+    new HtmlWebpackPlugin({
+      template: 'index.html',
+      minify: {
+        removeComments: isProd,
+        collapseWhiteSpace: isProd,
+      },
+    }),
 
-        //Плагин, который чистит папку дист, чтобы файлов с хэшем не было
-        new CleanWebpackPlugin(),
-
-        new HtmlWebpackPlugin({
-            template: 'index.html',
-            minify: {
-                removeComments: isProd,
-                collapseWhiteSpace: isProd
-            }
-        }),
-
-        //Плагин, который копирует файлы из сорса в билд, в нашем случае иконки
-        new CopyPlugin( { patterns:
+    // Плагин, который копирует файлы из сорса в билд, в нашем случае иконки
+    new CopyPlugin({
+      patterns:
                 [
-                {
+                  {
                     from: path.resolve(__dirname, 'src/favicon.ico'),
-                    to: path.resolve(__dirname, 'dist')
-                }
-            ]
-        }),
-
-        //Плагин, который минифицирует Css
-        new MiniCssExtractPlugin({
-            filename: filename('css')
-        })
-    ],
-    module: {
-        rules: [
-            {
-                test: /\.s[ac]ss$/i,
-                use: [
-                    MiniCssExtractPlugin.loader,
-                    // Translates CSS into CommonJS
-                    "css-loader",
-                    // Compiles Sass to CSS
-                    "sass-loader",
+                    to: path.resolve(__dirname, 'dist'),
+                  },
                 ],
-            },
-            {
-                test: /\.m?js$/,
-                exclude: /node_modules/,
-                use: {
-                    loader: "babel-loader",
-                    options: {
-                        presets: ['@babel/preset-env']
-                    }
-                }
-            },
+    }),
+
+    // Плагин, который минифицирует Css
+    new MiniCssExtractPlugin({
+      filename: filename('css'),
+    }),
+  ],
+  module: {
+    rules: [
+      {
+        test: /\.s[ac]ss$/i,
+        use: [{
+          loader: MiniCssExtractPlugin.loader,
+          options: {
+            hmr: isDev,
+            reloadAll: true,
+          },
+        },
+        // Translates CSS into CommonJS
+        'css-loader',
+        // Compiles Sass to CSS
+        'sass-loader',
         ],
-    },
-}
+      },
+      {
+        test: /\.m?js$/,
+        exclude: /node_modules/,
+        use: jsLoaders(),
+      },
+    ],
+  },
+};
