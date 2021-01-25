@@ -1,3 +1,1 @@
-const path = require('path');
-
-console.log(path.resolve(__dirname, 'строка'))
+import './scss/index.scss';
